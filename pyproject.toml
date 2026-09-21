@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "theminjoo-api-mcp"
-version = "0.2.0"
+version = "0.3.0"
 description = "Unofficial REST API and MCP server for the Democratic Party of Korea press briefings and opening remarks."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,6 +17,7 @@ dependencies = [
   "mcp>=1.12,<2",
   "pydantic>=2.8,<3",
   "pydantic-settings>=2.4,<3",
+  "python-multipart>=0.0.20,<1",
   "uvicorn[standard]>=0.30,<1",
 ]
 
