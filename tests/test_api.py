@@ -1,11 +1,13 @@
 import base64
 import hashlib
+from datetime import datetime
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
 
 from theminjoo_api_mcp.api import app
+from theminjoo_api_mcp.models import Board, PostSummary
 
 
 @pytest.fixture(scope="module")
@@ -35,6 +37,39 @@ def test_boards(client):
 
 def test_remote_mcp_is_mounted():
     assert any(getattr(route, "path", None) == "/mcp" for route in app.routes)
+
+
+def test_plus_web_app(client):
+    response = client.get("/app")
+    assert response.status_code == 200
+    assert "민주당 논평·브리핑 / 모두발언" in response.text
+    assert "AI용 Markdown 열기" in response.text
+
+
+def test_markdown_feed(client, monkeypatch):
+    async def fake_list_posts(board, offset=0, limit=20):
+        assert board is Board.BRIEFINGS
+        return [
+            PostSummary(
+                board=Board.BRIEFINGS,
+                board_label="논평·브리핑",
+                post_id=123,
+                category="브리핑",
+                title="테스트 브리핑",
+                published_at=datetime(2026, 9, 21, 12, 0),
+                url="https://theminjoo.kr/main/sub/news/view.php?brd=11&post=123",
+            )
+        ]
+
+    from theminjoo_api_mcp import api as api_module
+
+    monkeypatch.setattr(api_module.client, "list_posts", fake_list_posts)
+    response = client.get("/v1/markdown?board=11&limit=10")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert "# 더불어민주당 논평·브리핑 최신 자료" in response.text
+    assert "테스트 브리핑" in response.text
+    assert "/v1/markdown/11/123" in response.text
 
 
 def test_oauth_discovery_metadata(client):
