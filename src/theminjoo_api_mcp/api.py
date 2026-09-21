@@ -58,13 +58,16 @@ class OAuthBearerMiddleware:
                 response = JSONResponse(
                     {
                         "error": "invalid_token",
-                        "error_description": (\n                            "OAuth authorization is required for this MCP endpoint."\n                        ),
+                        "error_description": (
+                            "OAuth authorization is required for this MCP endpoint."
+                        ),
                     },
                     status_code=401,
                     headers={
                         "WWW-Authenticate": (
                             'Bearer scope="mcp", '
-                            f'resource_metadata="{origin}/.well-known/oauth-protected-resource"'
+                            f'resource_metadata="{origin}/.well-known/'
+                            'oauth-protected-resource"'
                         )
                     },
                 )
