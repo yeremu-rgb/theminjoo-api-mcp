@@ -40,7 +40,11 @@ def _sign(payload: dict[str, Any]) -> str:
 def _verify(token: str, expected_type: str) -> dict[str, Any]:
     try:
         body, sig = token.split(".", 1)
-        expected = hmac.new(settings.oauth_secret.encode(), body.encode(), hashlib.sha256).digest()
+        expected = hmac.new(
+            settings.oauth_secret.encode(),
+            body.encode(),
+            hashlib.sha256,
+        ).digest()
         if not hmac.compare_digest(_b64d(sig), expected):
             raise ValueError("bad signature")
         payload = json.loads(_b64d(body))
@@ -91,7 +95,8 @@ def _valid_redirect(uri: str) -> bool:
     parsed = urlparse(uri)
     if parsed.scheme == "https" and parsed.netloc:
         return True
-    return parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+    local_hosts = {"127.0.0.1", "localhost", "::1"}
+    return parsed.scheme == "http" and parsed.hostname in local_hosts
 
 
 def _redirect_allowed(client_id: str, redirect_uri: str) -> bool:
@@ -197,24 +202,64 @@ async def authorize_get(
         "state": state or "",
     }
     inputs = "".join(
-        f'<input type="hidden" name="{html.escape(k)}" value="{html.escape(v, quote=True)}">'
+        (
+            f'<input type="hidden" name="{html.escape(k)}" '
+            f'value="{html.escape(v, quote=True)}">'
+        )
         for k, v in hidden.items()
     )
     return HTMLResponse(
         f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
 <title>theminjoo-api-mcp 연결 승인</title>
 <style>
-body{{font-family:system-ui,sans-serif;max-width:620px;margin:64px auto;padding:0 20px;color:#171717}}
-.card{{border:1px solid #ddd;border-radius:16px;padding:28px}}
-button{{background:#111;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-size:16px;cursor:pointer}}
-small{{color:#666}}
-</style></head><body><div class="card">
+body {{
+  font-family: system-ui, sans-serif;
+  max-width: 620px;
+  margin: 64px auto;
+  padding: 0 20px;
+  color: #171717;
+}}
+.card {{
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  padding: 28px;
+}}
+button {{
+  background: #111;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 16px;
+  cursor: pointer;
+}}
+small {{ color: #666; }}
+</style>
+</head>
+<body>
+<div class="card">
 <h2>theminjoo-api-mcp 연결 승인</h2>
-<p>Claude 또는 ChatGPT가 더불어민주당 공식 홈페이지의 공개 논평·브리핑 및 모두발언을 조회하도록 허용합니다.</p>
-<p><small>이 OAuth 흐름은 공개 데이터 MCP 연결을 위한 동의 절차이며 사용자 신원을 확인하는 로그인 서비스가 아닙니다.</small></p>
-<form method="post" action="/oauth/authorize">{inputs}<button type="submit">연결 허용</button></form>
-</div></body></html>"""
+<p>
+Claude 또는 ChatGPT가 더불어민주당 공식 홈페이지의 공개 논평·브리핑 및
+모두발언을 조회하도록 허용합니다.
+</p>
+<p>
+<small>
+이 OAuth 흐름은 공개 데이터 MCP 연결을 위한 동의 절차이며 사용자 신원을
+확인하는 로그인 서비스가 아닙니다.
+</small>
+</p>
+<form method="post" action="/oauth/authorize">
+{inputs}
+<button type="submit">연결 허용</button>
+</form>
+</div>
+</body>
+</html>"""
     )
 
 
