@@ -97,7 +97,7 @@ def test_oauth_discovery_metadata(client):
 
 
 def test_mcp_requires_oauth_and_advertises_resource_metadata(client):
-    response = client.get("/mcp")
+    response = client.get("/mcp", follow_redirects=False)
     assert response.status_code == 401
     challenge = response.headers["www-authenticate"]
     assert "resource_metadata=" in challenge
@@ -199,6 +199,7 @@ def test_full_oauth_pkce_flow_and_mcp_initialize(client):
 
     initialize = client.post(
         "/mcp",
+        follow_redirects=False,
         headers={
             "Authorization": f"Bearer {token_body['access_token']}",
             "Accept": "application/json, text/event-stream",
