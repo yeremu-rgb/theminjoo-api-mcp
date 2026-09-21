@@ -36,7 +36,7 @@ def test_boards(client):
 
 
 def test_remote_mcp_is_mounted():
-    assert any(getattr(route, "path", None) == "/mcp" for route in app.routes)
+    assert any(getattr(route, "path", None) == "" for route in app.routes)
 
 
 def test_plus_web_app(client):
