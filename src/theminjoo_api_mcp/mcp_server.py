@@ -5,12 +5,21 @@ from mcp.server.fastmcp import FastMCP
 from .client import TheMinjooClient
 from .models import Board
 
-mcp = FastMCP("theminjoo-api-mcp")
+mcp = FastMCP(
+    "theminjoo-api-mcp",
+    stateless_http=True,
+    json_response=True,
+)
+mcp.settings.streamable_http_path = "/"
+
 client = TheMinjooClient()
 
 
 def _board(value: int) -> Board:
-    return Board(value)
+    try:
+        return Board(value)
+    except ValueError as exc:
+        raise ValueError("board must be 11 (논평·브리핑) or 230 (모두발언)") from exc
 
 
 @mcp.tool()
@@ -37,6 +46,7 @@ async def search_posts(board: int, query: str, pages: int = 3) -> list[dict]:
 
 
 def run() -> None:
+    """Run the local stdio MCP server."""
     try:
         mcp.run(transport="stdio")
     finally:
