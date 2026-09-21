@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
@@ -79,9 +80,9 @@ async def boards() -> list[dict[str, int | str]]:
 
 @app.get("/v1/posts", response_model=PostList)
 async def list_posts(
-    board: Board = Query(..., description="11=논평·브리핑, 230=모두발언"),
-    offset: int = Query(0, ge=0),
-    limit: int = Query(settings.default_page_size, ge=1, le=settings.max_page_size),
+    board: Annotated[Board, Query(description="11=논평·브리핑, 230=모두발언")],
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=settings.max_page_size)] = settings.default_page_size,
 ) -> PostList:
     try:
         items = await client.list_posts(board, offset=offset, limit=limit)
@@ -110,9 +111,9 @@ async def get_post(board: Board, post_id: int) -> PostDetail:
 
 @app.get("/v1/search", response_model=list[PostSummary])
 async def search_posts(
-    q: str = Query(..., min_length=1, max_length=200),
-    board: Board = Query(...),
-    pages: int = Query(3, ge=1, le=10),
+    q: Annotated[str, Query(min_length=1, max_length=200)],
+    board: Board,
+    pages: Annotated[int, Query(ge=1, le=10)] = 3,
 ) -> list[PostSummary]:
     try:
         return await client.search(board, q, pages=pages)
