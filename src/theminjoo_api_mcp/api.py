@@ -58,7 +58,7 @@ class OAuthBearerMiddleware:
                 response = JSONResponse(
                     {
                         "error": "invalid_token",
-                        "error_description": "OAuth authorization is required for this MCP endpoint.",
+                        "error_description": (\n                            "OAuth authorization is required for this MCP endpoint."\n                        ),
                     },
                     status_code=401,
                     headers={
