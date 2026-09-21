@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "theminjoo-api-mcp"
-version = "0.4.0"
+version = "0.5.0"
 description = "Unofficial REST API and MCP server for the Democratic Party of Korea press briefings and opening remarks."
 readme = "README.md"
 requires-python = ">=3.11"
