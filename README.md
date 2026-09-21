@@ -14,6 +14,8 @@
 - `brd=11`: 논평·브리핑 목록/본문
 - `brd=230`: 모두발언 목록/본문
 - FastAPI REST API + OpenAPI
+- **ChatGPT Plus용 브라우저 UI: `/app` 또는 `/plus`**
+- **AI 읽기용 Markdown 피드: `/v1/markdown`**
 - 원격 MCP(Streamable HTTP): `/mcp`
 - 로컬 MCP(stdio): `theminjoo-mcp`
 - MCP tools: `list_posts`, `get_post`, `search_posts`
@@ -61,7 +63,62 @@ GET /v1/posts?board=11&offset=0&limit=20
 GET /v1/posts?board=230&offset=0&limit=20
 GET /v1/posts/{board}/{post_id}
 GET /v1/search?board=11&q=키워드&pages=3
+GET /v1/markdown?board=11&limit=30
+GET /v1/markdown/{board}/{post_id}
+GET /app
+GET /plus
 ```
+
+## ChatGPT Plus에서 사용
+
+개인용 ChatGPT Plus에서는 커스텀 MCP를 직접 설치할 수 없으므로, 같은 데이터를 **일반 웹 URL과 Markdown 피드**로 사용할 수 있습니다.
+
+### 웹 화면
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/app
+```
+
+또는:
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/plus
+```
+
+웹 화면에서는:
+
+- 논평·브리핑 / 모두발언 전환
+- 최신 글 보기
+- 제목 검색
+- 본문 보기
+- 공식 원문 열기
+- AI용 Markdown 본문 열기
+- ChatGPT에 붙여넣을 질문 문구 복사
+
+를 할 수 있습니다.
+
+### ChatGPT가 읽기 쉬운 공개 URL
+
+최신 논평·브리핑:
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/v1/markdown?board=11&limit=30
+```
+
+최신 모두발언:
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/v1/markdown?board=230&limit=30
+```
+
+ChatGPT Plus 대화에서 위 URL을 붙여넣고 다음처럼 요청할 수 있습니다.
+
+```text
+이 공개 URL을 읽고 최신 논평·브리핑을 핵심 내용, 인물, 날짜, 원문 링크 중심으로 요약해줘:
+https://theminjoo-api-mcp-production.up.railway.app/v1/markdown?board=11&limit=30
+```
+
+이 방식은 MCP 연결이 아니라 일반 HTTPS 공개 페이지를 읽는 방식입니다.
 
 ## 원격 MCP
 
