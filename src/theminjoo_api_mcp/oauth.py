@@ -112,6 +112,7 @@ def _pkce_ok(verifier: str, challenge: str) -> bool:
 
 
 @router.get("/.well-known/oauth-protected-resource")
+@router.get("/.well-known/oauth-protected-resource/mcp")
 async def protected_resource_metadata(request: Request) -> dict[str, Any]:
     origin = _origin(request)
     return {
