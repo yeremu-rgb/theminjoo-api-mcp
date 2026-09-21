@@ -14,14 +14,18 @@
 - `brd=11`: 논평·브리핑 목록/본문
 - `brd=230`: 모두발언 목록/본문
 - FastAPI REST API + OpenAPI
-- **원격 MCP(Streamable HTTP): `/mcp`**
+- 원격 MCP(Streamable HTTP): `/mcp`
 - 로컬 MCP(stdio): `theminjoo-mcp`
 - MCP tools: `list_posts`, `get_post`, `search_posts`
-- 선택적 Bearer Token 인증
-- CORS/MCP 헤더 지원
+- OAuth 2.1 호환 Authorization Code + PKCE(S256)
+- MCP Protected Resource Metadata + Authorization Server Metadata
+- Dynamic Client Registration(DCR)
+- `offline_access` + refresh token
+- OAuth access token의 MCP resource binding
+- 선택적 legacy static Bearer token
 - 5분 기본 TTL 캐시
 - pytest, Ruff, Docker, GitHub Actions CI
-- Render 배포 Blueprint
+- Railway / Render 배포 지원
 
 ## 설치
 
@@ -61,7 +65,7 @@ GET /v1/search?board=11&q=키워드&pages=3
 
 ## 원격 MCP
 
-원격 MCP는 같은 FastAPI 프로세스의 `/mcp`에 **Streamable HTTP**로 마운트됩니다.
+원격 MCP는 같은 FastAPI 프로세스의 `/mcp`에 Streamable HTTP로 마운트됩니다.
 
 ### MCP tools
 
@@ -74,22 +78,70 @@ GET /v1/search?board=11&q=키워드&pages=3
 - `11`: 논평·브리핑
 - `230`: 모두발언
 
-### Bearer Token 보호
+## OAuth 2.1 / MCP Authorization
 
-공개 인터넷에 배포할 때 토큰 인증을 켜려면:
+원격 `/mcp`는 기본적으로 OAuth Bearer access token을 요구합니다. 인증 없이 접근하면 HTTP 401과 함께 `WWW-Authenticate`의 `resource_metadata` 위치를 반환합니다.
 
-```bash
-export THEMINJOO_MCP_TOKEN='change-me-to-a-long-random-secret'
-theminjoo-api
-```
-
-MCP 요청에는 다음 헤더를 보냅니다.
+### Discovery / OAuth 엔드포인트
 
 ```text
-Authorization: Bearer change-me-to-a-long-random-secret
+GET  /.well-known/oauth-protected-resource
+GET  /.well-known/oauth-protected-resource/mcp
+GET  /.well-known/oauth-authorization-server
+GET  /.well-known/openid-configuration
+
+POST /register
+GET  /authorize
+POST /authorize
+POST /token
+
+# 이전 버전 호환 aliases
+POST /oauth/register
+GET  /oauth/authorize
+POST /oauth/authorize
+POST /oauth/token
 ```
 
-토큰을 설정하지 않으면 `/mcp`는 인증 없이 접근할 수 있습니다. REST API는 이 토큰과 무관하게 공개됩니다.
+지원 기능:
+
+- Authorization Code
+- PKCE `S256`
+- Dynamic Client Registration(DCR)
+- public client (`token_endpoint_auth_method=none`)
+- `application_type=web|native`
+- RFC 9207 `iss` authorization response parameter
+- RFC 8707 스타일 `resource` binding
+- `offline_access` + refresh token
+- Bearer access token
+
+## Claude 연결
+
+Claude의 Custom Connector에 아래 URL을 등록합니다.
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/mcp
+```
+
+정상 흐름:
+
+1. Claude가 `/mcp`에 접근하고 401 + Protected Resource Metadata를 확인
+2. Authorization Server Metadata를 조회
+3. DCR로 OAuth public client를 자동 등록
+4. 브라우저에서 승인 화면 표시
+5. **연결 허용**
+6. PKCE code exchange 후 MCP 연결
+
+이 서버는 자동 DCR을 지원하므로 임의의 고정 Client ID를 수동 입력할 필요가 없습니다. 이전 연결 시도의 메타데이터가 캐시된 상태에서 “OAuth 클라이언트 ID를 수동으로 추가” 메시지가 계속 보이면 기존 커넥터를 삭제하고 새로 추가하세요.
+
+## ChatGPT 연결
+
+지원되는 ChatGPT Developer Mode / Custom MCP App 환경에서도 같은 MCP URL을 사용합니다.
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/mcp
+```
+
+OAuth 연결에서는 `offline_access`를 discovery metadata에 광고하고 refresh token을 발급합니다.
 
 ## 로컬 stdio MCP
 
@@ -113,104 +165,26 @@ stdio MCP 클라이언트 예시:
 
 ```bash
 docker build -t theminjoo-api-mcp .
-docker run --rm -p 8000:8000 theminjoo-api-mcp
-```
-
-토큰을 적용하려면:
-
-```bash
 docker run --rm -p 8000:8000 \
-  -e THEMINJOO_MCP_TOKEN='change-me' \
+  -e THEMINJOO_OAUTH_SECRET='replace-with-a-long-random-secret' \
   theminjoo-api-mcp
 ```
 
-또는:
-
-```bash
-docker compose up --build
-```
-
-## Render 배포
-
-저장소 루트의 `render.yaml`을 사용해 Render Blueprint로 배포할 수 있습니다.
-
-1. Render에서 **New → Blueprint**
-2. GitHub 저장소 `yeremu-rgb/theminjoo-api-mcp` 선택
-3. 배포
-4. 배포 URL이 `https://YOUR-SERVICE.onrender.com`이라면 MCP URL은:
-   `https://YOUR-SERVICE.onrender.com/mcp`
-5. 필요한 경우 Render 환경변수에 `THEMINJOO_MCP_TOKEN` 추가
-
-## ChatGPT에 연결할 때
-
-ChatGPT는 로컬 stdio 서버가 아니라 인터넷에서 접근 가능한 **원격 MCP URL**이 필요합니다. 따라서 먼저 Render 등 HTTPS 호스팅에 배포한 다음 배포된 `/mcp` URL을 ChatGPT의 커스텀 MCP/App 설정에 등록합니다.
-
-예시:
+공개 배포에서는 `THEMINJOO_PUBLIC_URL`도 설정하세요.
 
 ```text
-https://YOUR-SERVICE.onrender.com/mcp
+THEMINJOO_PUBLIC_URL=https://your-service.example.com
 ```
 
-토큰 인증을 켠 경우 연결 설정에도 동일한 Bearer Token을 입력합니다.
+## Legacy static Bearer token
 
-## Claude / ChatGPT OAuth 연결
-
-원격 MCP `/mcp`는 MCP Authorization 규격에 맞춘 OAuth 2.1 호환 흐름을 제공합니다.
-
-지원 엔드포인트:
+OAuth 외에 운영자가 직접 발급한 고정 Bearer token을 병행하려면:
 
 ```text
-GET  /.well-known/oauth-protected-resource
-GET  /.well-known/oauth-protected-resource/mcp
-GET  /.well-known/oauth-authorization-server
-POST /oauth/register
-GET  /oauth/authorize
-POST /oauth/authorize
-POST /oauth/token
+THEMINJOO_MCP_TOKEN=your-static-token
 ```
 
-지원 기능:
-
-- OAuth Authorization Code
-- PKCE `S256`
-- Dynamic Client Registration(DCR)
-- Bearer access token
-- `offline_access` + refresh token
-- MCP `401 WWW-Authenticate: resource_metadata=...` discovery
-
-### Claude
-
-커스텀 커넥터 URL:
-
-```text
-https://theminjoo-api-mcp-production.up.railway.app/mcp
-```
-
-자동 등록이 실패해 OAuth Client ID를 수동 입력하라는 UI가 나오면 다음 public client ID를 사용할 수 있습니다.
-
-```text
-theminjoo-claude
-```
-
-Client Secret은 비워 둡니다. 연결 과정에서 브라우저에 승인 화면이 열리면 **연결 허용**을 선택합니다.
-
-### ChatGPT
-
-지원되는 ChatGPT Developer Mode / Custom MCP App 환경에서는 동일한 URL을 사용합니다.
-
-```text
-https://theminjoo-api-mcp-production.up.railway.app/mcp
-```
-
-OAuth Client ID를 수동으로 요구하는 경우:
-
-```text
-theminjoo-chatgpt
-```
-
-Client Secret은 비워 둡니다. 서버는 `offline_access`와 refresh token을 광고하고 발급하므로 장기 연결 갱신을 지원합니다.
-
-> OAuth는 이 프로젝트의 공개 데이터 MCP 연결을 승인하기 위한 호환 계층입니다. 별도의 민주당 계정이나 사용자 신원을 인증하지 않습니다.
+이 값은 선택 사항입니다. Claude/ChatGPT OAuth 연결에는 필요하지 않습니다.
 
 ## 환경변수
 
@@ -222,6 +196,8 @@ THEMINJOO_REQUEST_TIMEOUT=15
 THEMINJOO_CACHE_TTL_SECONDS=300
 THEMINJOO_DEFAULT_PAGE_SIZE=20
 THEMINJOO_MAX_PAGE_SIZE=100
+THEMINJOO_PUBLIC_URL=https://your-service.example.com
+THEMINJOO_OAUTH_SECRET=replace-with-a-long-random-secret
 THEMINJOO_MCP_TOKEN=
 THEMINJOO_CORS_ORIGINS=*
 ```
@@ -235,16 +211,25 @@ pytest -q
 python -m build
 ```
 
-fixture 기반 테스트는 외부 사이트 장애와 무관하게 파서/API 기본 동작을 검증합니다.
+테스트는 다음을 포함합니다.
+
+- REST health / boards
+- OAuth discovery metadata
+- MCP 401 challenge
+- RFC 7591 형태 DCR 응답
+- PKCE 승인
+- authorization code → access/refresh token
+- OAuth Bearer access token으로 실제 MCP `initialize`
 
 ## 프로젝트 구조
 
 ```text
 src/theminjoo_api_mcp/
-  api.py           # REST + /mcp mount
+  api.py
   client.py
   parser.py
-  mcp_server.py    # MCP tools + stdio/HTTP 공용 FastMCP
+  mcp_server.py
+  oauth.py
   models.py
   config.py
 tests/
