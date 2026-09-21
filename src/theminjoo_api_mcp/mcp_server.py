@@ -10,7 +10,7 @@ mcp = FastMCP(
     "theminjoo-api-mcp",
     stateless_http=True,
     json_response=True,
-    streamable_http_path="/",
+    streamable_http_path="/mcp",
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False,
     ),
