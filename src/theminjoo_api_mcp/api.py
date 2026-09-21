@@ -261,4 +261,4 @@ remote_mcp_app = CORSMiddleware(
     expose_headers=["Mcp-Session-Id", "WWW-Authenticate"],
 )
 remote_mcp_app = OAuthBearerMiddleware(remote_mcp_app)
-app.mount("/mcp", remote_mcp_app)
+app.mount("/", remote_mcp_app)
