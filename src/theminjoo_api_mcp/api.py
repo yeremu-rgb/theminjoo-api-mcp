@@ -3,7 +3,6 @@ from typing import Annotated
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
-from mcp.server.transport_security import TransportSecuritySettings
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
