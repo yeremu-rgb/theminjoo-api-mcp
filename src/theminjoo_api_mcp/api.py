@@ -3,6 +3,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
@@ -161,7 +162,33 @@ async def search_posts(
         raise HTTPException(status_code=502, detail=f"upstream error: {exc}") from exc
 
 
-remote_mcp_app = mcp.streamable_http_app()
+if settings.public_url:
+    # Railway/Render terminate HTTPS and control routing at the reverse proxy.
+    transport_security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=False
+    )
+else:
+    transport_security = TransportSecuritySettings(
+        allowed_hosts=[
+            "localhost",
+            "localhost:*",
+            "127.0.0.1",
+            "127.0.0.1:*",
+            "[::1]",
+            "[::1]:*",
+            "testserver",
+            "testserver:*",
+        ],
+        allowed_origins=[
+            "http://localhost",
+            "http://127.0.0.1",
+            "http://testserver",
+        ],
+    )
+
+remote_mcp_app = mcp.streamable_http_app(
+    transport_security=transport_security
+)
 remote_mcp_app = CORSMiddleware(
     remote_mcp_app,
     allow_origins=settings.allowed_origins,
