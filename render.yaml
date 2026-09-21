@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: theminjoo-api-mcp
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
