@@ -1,6 +1,7 @@
 import asyncio
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from .client import TheMinjooClient
 from .models import Board
@@ -9,8 +10,11 @@ mcp = FastMCP(
     "theminjoo-api-mcp",
     stateless_http=True,
     json_response=True,
+    streamable_http_path="/",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
 )
-mcp.settings.streamable_http_path = "/"
 
 client = TheMinjooClient()
 
