@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 DASHBOARD_HTML = r"""<!doctype html>
 <html lang="ko">
 <head>
