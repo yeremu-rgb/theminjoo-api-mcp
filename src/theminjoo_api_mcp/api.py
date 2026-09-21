@@ -48,7 +48,8 @@ class OAuthBearerMiddleware:
                 valid = True
             elif auth.startswith("Bearer "):
                 try:
-                    verify_access_token(auth[7:])
+                    origin = self._origin(scope)
+                    verify_access_token(auth[7:], f"{origin}/mcp")
                     valid = True
                 except HTTPException:
                     valid = False
