@@ -4,7 +4,7 @@ from typing import Annotated
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from . import __version__
 from .client import TheMinjooClient
@@ -14,6 +14,7 @@ from .mcp_server import mcp
 from .models import Board, PostDetail, PostList, PostSummary
 from .oauth import router as oauth_router
 from .oauth import verify_access_token
+from .web_ui import DASHBOARD_HTML
 
 client = TheMinjooClient()
 
@@ -104,6 +105,8 @@ async def root() -> dict[str, str]:
         "version": __version__,
         "rest_docs": "/docs",
         "mcp": "/mcp",
+        "web_app": "/app",
+        "markdown_feed": "/v1/markdown?board=11&limit=30",
         "oauth_metadata": "/.well-known/oauth-authorization-server",
     }
 
@@ -111,6 +114,13 @@ async def root() -> dict[str, str]:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
+
+
+@app.get("/app", response_class=HTMLResponse)
+@app.get("/plus", response_class=HTMLResponse)
+async def web_app() -> HTMLResponse:
+    """Browser UI that works without MCP installation."""
+    return HTMLResponse(DASHBOARD_HTML)
 
 
 @app.get("/v1/boards")
@@ -159,6 +169,80 @@ async def search_posts(
         return await client.search(board, q, pages=pages)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"upstream error: {exc}") from exc
+
+
+def _summary_markdown(item: PostSummary) -> str:
+    date = item.published_at.isoformat(sep=" ", timespec="minutes") if item.published_at else ""
+    category = f" · {item.category}" if item.category else ""
+    return (
+        f"## {item.title}\n"
+        f"- 게시판: {item.board_label}{category}\n"
+        f"- 게시일: {date or '확인 불가'}\n"
+        f"- 원문: {item.url}\n"
+        f"- AI용 본문: /v1/markdown/{int(item.board)}/{item.post_id}\n"
+    )
+
+
+@app.get("/v1/markdown", response_class=PlainTextResponse)
+async def markdown_feed(
+    board: Annotated[Board, Query(description="11=논평·브리핑, 230=모두발언")],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> PlainTextResponse:
+    """Markdown feed intended for browsers and AI assistants without MCP support."""
+    try:
+        items = await client.list_posts(board, offset=0, limit=limit)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"upstream error: {exc}") from exc
+
+    body = [
+        f"# 더불어민주당 {board.label} 최신 자료",
+        "",
+        "출처: 더불어민주당 공식 홈페이지 공개 게시물",
+        "",
+    ]
+    for item in items:
+        body.append(_summary_markdown(item))
+    return PlainTextResponse(
+        "\n".join(body),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=60"},
+    )
+
+
+@app.get("/v1/markdown/{board}/{post_id}", response_class=PlainTextResponse)
+async def markdown_post(board: Board, post_id: int) -> PlainTextResponse:
+    """One post as clean Markdown for copy/paste or web-reading assistants."""
+    try:
+        item = await client.get_post(board, post_id)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise HTTPException(status_code=404, detail="post not found") from exc
+        raise HTTPException(status_code=502, detail=f"upstream error: {exc}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"upstream error: {exc}") from exc
+
+    date = item.published_at.isoformat(sep=" ", timespec="minutes") if item.published_at else ""
+    lines = [
+        f"# {item.title}",
+        "",
+        f"- 게시판: {item.board_label}",
+        f"- 게시일: {date or '확인 불가'}",
+        f"- 작성자: {item.author or '확인 불가'}",
+        f"- 공식 원문: {item.url}",
+        "",
+        "## 본문",
+        "",
+        item.content,
+    ]
+    if item.attachments:
+        lines.extend(["", "## 첨부파일", ""])
+        lines.extend(f"- {url}" for url in item.attachments)
+
+    return PlainTextResponse(
+        "\n".join(lines),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 remote_mcp_app = mcp.streamable_http_app()
