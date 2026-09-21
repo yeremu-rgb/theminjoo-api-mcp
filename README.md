@@ -153,6 +153,65 @@ https://YOUR-SERVICE.onrender.com/mcp
 
 토큰 인증을 켠 경우 연결 설정에도 동일한 Bearer Token을 입력합니다.
 
+## Claude / ChatGPT OAuth 연결
+
+원격 MCP `/mcp`는 MCP Authorization 규격에 맞춘 OAuth 2.1 호환 흐름을 제공합니다.
+
+지원 엔드포인트:
+
+```text
+GET  /.well-known/oauth-protected-resource
+GET  /.well-known/oauth-protected-resource/mcp
+GET  /.well-known/oauth-authorization-server
+POST /oauth/register
+GET  /oauth/authorize
+POST /oauth/authorize
+POST /oauth/token
+```
+
+지원 기능:
+
+- OAuth Authorization Code
+- PKCE `S256`
+- Dynamic Client Registration(DCR)
+- Bearer access token
+- `offline_access` + refresh token
+- MCP `401 WWW-Authenticate: resource_metadata=...` discovery
+
+### Claude
+
+커스텀 커넥터 URL:
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/mcp
+```
+
+자동 등록이 실패해 OAuth Client ID를 수동 입력하라는 UI가 나오면 다음 public client ID를 사용할 수 있습니다.
+
+```text
+theminjoo-claude
+```
+
+Client Secret은 비워 둡니다. 연결 과정에서 브라우저에 승인 화면이 열리면 **연결 허용**을 선택합니다.
+
+### ChatGPT
+
+지원되는 ChatGPT Developer Mode / Custom MCP App 환경에서는 동일한 URL을 사용합니다.
+
+```text
+https://theminjoo-api-mcp-production.up.railway.app/mcp
+```
+
+OAuth Client ID를 수동으로 요구하는 경우:
+
+```text
+theminjoo-chatgpt
+```
+
+Client Secret은 비워 둡니다. 서버는 `offline_access`와 refresh token을 광고하고 발급하므로 장기 연결 갱신을 지원합니다.
+
+> OAuth는 이 프로젝트의 공개 데이터 MCP 연결을 승인하기 위한 호환 계층입니다. 별도의 민주당 계정이나 사용자 신원을 인증하지 않습니다.
+
 ## 환경변수
 
 `.env.example` 참고:
